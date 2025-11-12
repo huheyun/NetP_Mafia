@@ -1,0 +1,51 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Compile Java",
+            "type": "shell",
+            "command": "javac",
+            "args": [
+                "-encoding", "UTF-8",
+                "-d", "bin",
+                "-cp", "src",
+                "src/mafia_game/*.java"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Run Server",
+            "type": "shell",
+            "command": "java",
+            "args": ["-cp", "bin", "mafia_game.TcpServer"],
+            "group": "test",
+            "dependsOn": "Compile Java",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Run Client",
+            "type": "shell",
+            "command": "java",
+            "args": ["-cp", "bin", "mafia_game.ClientGuiMain"],
+            "group": "test",
+            "dependsOn": "Compile Java",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "new"
+            }
+        }
+    ]
+}

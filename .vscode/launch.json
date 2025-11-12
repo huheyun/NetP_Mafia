@@ -1,0 +1,21 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Run Server",
+            "request": "launch",
+            "mainClass": "mafia_game.TcpServer",
+            "projectName": "NetP_Mafia",
+            "classPaths": ["${workspaceFolder}/bin"]
+        },
+        {
+            "type": "java", 
+            "name": "Run Client",
+            "request": "launch",
+            "mainClass": "mafia_game.ClientGuiMain",
+            "projectName": "NetP_Mafia",
+            "classPaths": ["${workspaceFolder}/bin"]
+        }
+    ]
+}
