@@ -9,7 +9,7 @@ import mafia_game.TcpApplication;
 public class AppServer extends TcpApplication {
 
     /*
-     * 애플리케이션 초기화! 
+     * 애플리케이션 초기화
      */
     @Override
     public void init() {

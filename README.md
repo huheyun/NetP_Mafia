@@ -51,7 +51,7 @@ java -cp bin mafia_game.TcpServer
 ### 3. 클라이언트 실행
 
 ```bash
-java -cp bin mafia_game.ClientGuiMain
+java -cp bin mafia_game.MafiaGameClientMain
 ```
 
 ## 설정

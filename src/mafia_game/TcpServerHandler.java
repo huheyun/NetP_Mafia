@@ -289,7 +289,7 @@ public class TcpServerHandler implements Runnable {
         remainingTime = 30;
 
         broadCast(" ");
-        broadCast("🌞 === " + dayCount + "일차 낮이 되었습니다 ===");
+        broadCast(dayCount + "일차 낮이 되었습니다 ");
         broadCast("모든 플레이어가 토론하고 마피아를 찾아 투표하세요!");
         broadCast("투표 명령어: /vote [플레이어명]");
         broadCast("생존 플레이어: " + getAlivePlayers());
@@ -345,7 +345,7 @@ public class TcpServerHandler implements Runnable {
     // 투표 결과 처리
     private static void processVoteResults() {
         broadCast(" ");
-        broadCast("=== 투표 결과 ===");
+        broadCast("투표 결과");
 
         if (votes.isEmpty()) {
             broadCast("아무도 투표하지 않았습니다.");
@@ -398,7 +398,7 @@ public class TcpServerHandler implements Runnable {
     private static void eliminatePlayer(String playerId) {
         playerAlive.put(playerId, false);
         String job = playerJobs.get(playerId);
-        broadCast("💀 " + playerId + "님이 제거되었습니다. (직업: " + job + ")");
+        broadCast(playerId + "님이 제거되었습니다. (직업: " + job + ")");
 
         // 해당 플레이어의 연결을 종료하지 않고 관찰자 모드로 전환
         PrintWriter pw = sendMap.get(playerId);
@@ -445,7 +445,7 @@ public class TcpServerHandler implements Runnable {
         }
 
         broadCast(" ");
-        broadCast("=== 게임 결과 ===");
+        broadCast("게임 결과");
         for (String player : playerJobs.keySet()) {
             String status = playerAlive.get(player) ? "생존" : "사망";
             broadCast(player + " - " + playerJobs.get(player) + " (" + status + ")");
@@ -461,7 +461,7 @@ public class TcpServerHandler implements Runnable {
         remainingTime = 15; // 밤은 15초
 
         broadCast(" ");
-        broadCast("🌙 === 밤이 되었습니다 ===");
+        broadCast("밤이 되었습니다");
         broadCast("마피아가 한 명을 제거합니다...");
         broadCast("시민들은 잠들어주세요.");
         broadCast(" ");
@@ -498,7 +498,7 @@ public class TcpServerHandler implements Runnable {
     // 밤 행동 결과 처리
     private static void processNightResults() {
         broadCast(" ");
-        broadCast("=== 밤이 지나갔습니다 ===");
+        broadCast("밤이 지나갔습니다");
 
         // 마피아의 타겟 처리
         if (mafiaTarget != null && playerAlive.getOrDefault(mafiaTarget, false)) {
