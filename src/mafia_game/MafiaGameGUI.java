@@ -7,6 +7,7 @@ import java.io.*;
 import java.net.Socket;
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
+import mafia_game.SFXPlayer;
 
 /**
  * 개선된 마피아 게임 GUI
@@ -274,9 +275,11 @@ public class MafiaGameGUI extends JFrame implements ActionListener, Runnable {
 
     @Override
     public void run() {
+        System.out.println("[DEBUG] run() 시작됨");
         try {
             String message;
             while ((message = in.readLine()) != null) {
+                System.out.println("[DEBUG] 받은 메시지: " + message);
                 processServerMessage(message);
             }
         } catch (IOException e) {
@@ -306,26 +309,35 @@ public class MafiaGameGUI extends JFrame implements ActionListener, Runnable {
             String role = message.substring(message.indexOf(":") + 1).trim();
             currentRole = role;
             SwingUtilities.invokeLater(() -> updateRoleDisplay());
-        } else if (message.contains("낮이 되었습니다")) {
-            currentPhase = "낮";
-            SwingUtilities.invokeLater(() -> {
-                phaseLabel.setText("페이즈: 낮 (토론)");
-                updateControlButtons();
-            });
-        } else if (message.contains("밤이 되었습니다")) {
-            currentPhase = "밤";
-            SwingUtilities.invokeLater(() -> {
-                phaseLabel.setText("페이즈: 밤 (특수행동)");
-                updateControlButtons();
-            });
-        } else if (message.contains("님이 투표로 제거되었습니다") && message.contains(playerName)) {
+
+
+        } else if (message.contains("낮이") && message.contains("되었")) {
+            System.out.println("[DEBUG] 낮 감지 성공!");
+             currentPhase = "낮";
+             BGMPlayer.playBGM("src/mafia_game/sounds/morning.wav");
+             SwingUtilities.invokeLater(() -> {
+                  phaseLabel.setText("페이즈: 낮 (토론)");
+                 updateControlButtons();
+             });
+
+        } else if (message.contains("밤이") && message.contains("되었")) {
+            System.out.println("[DEBUG]낮 감지 성공!");
+             currentPhase = "밤";
+             BGMPlayer.playBGM("src/mafia_game/sounds/night.wav");
+             SwingUtilities.invokeLater(() -> {
+                  phaseLabel.setText("페이즈: 밤 (특수행동)");
+                 updateControlButtons();
+             });
+        } else if (message.contains("님이 제거되었습니다") && message.contains(playerName)) {
             isAlive = false;
+            SFXPlayer.playSound("src/mafia_game/sounds/pistol-shot.wav");
             SwingUtilities.invokeLater(() -> {
                 playerInfoLabel.setText("플레이어: " + playerName + " (사망)");
                 updateControlButtons();
             });
-        } else if (message.contains("님이 마피아에게 살해되었습니다") && message.contains(playerName)) {
+        } else if (message.contains("살해되었습니다") && message.contains(playerName)) {
             isAlive = false;
+            SFXPlayer.playSound("src/mafia_game/sounds/pistol-shot.wav");
             SwingUtilities.invokeLater(() -> {
                 playerInfoLabel.setText("플레이어: " + playerName + " (사망)");
                 updateControlButtons();
