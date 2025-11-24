@@ -337,7 +337,7 @@ public class TcpServerHandler implements Runnable {
         synchronized (sendMap) {
             for (PrintWriter pw : sendMap.values()) {
                 pw.println(timerMessage);
-                pw.flush();
+                pw.flush(); 
             }
         }
     }
@@ -707,9 +707,9 @@ public class TcpServerHandler implements Runnable {
                     PrintWriter pw = sendMap.get(policeId);
                     if (pw != null) {
                         if (isMafia) {
-                            pw.println("🚔 조사 결과: " + target + "님은 마피아입니다!");
+                            pw.println("조사 결과: " + target + "님은 마피아입니다!");
                         } else {
-                            pw.println("🚔 조사 결과: " + target + "님은 마피아가 아닙니다.");
+                            pw.println("조사 결과: " + target + "님은 마피아가 아닙니다.");
                         }
                         pw.flush();
                     }
@@ -741,7 +741,7 @@ public class TcpServerHandler implements Runnable {
 
                 PrintWriter pw = sendMap.get(doctorId);
                 if (pw != null) {
-                    pw.println("💉 " + target + "님을 치료했습니다.");
+                    pw.println(target + "님을 치료했습니다.");
                     pw.flush();
                 }
             } else {

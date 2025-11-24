@@ -230,7 +230,7 @@ public class MafiaGameGUI extends JFrame implements ActionListener, Runnable {
                     nightActionButton.setText("🔪 살해");
                     break;
                 case "경찰":
-                    nightActionButton.setText("🔍 조사");
+                    nightActionButton.setText("🔍  조사");
                     break;
                 case "의사":
                     nightActionButton.setText("💉 치료");
@@ -330,7 +330,7 @@ public class MafiaGameGUI extends JFrame implements ActionListener, Runnable {
              });
         } else if (message.contains("님이 제거되었습니다") && message.contains(playerName)) {
             isAlive = false;
-            SFXPlayer.playSound("src/mafia_game/sounds/pistol-shot.wav");
+            SFXPlayer.playSound("src/mafia_game/sounds/blade.wav");
             SwingUtilities.invokeLater(() -> {
                 playerInfoLabel.setText("플레이어: " + playerName + " (사망)");
                 updateControlButtons();
@@ -342,7 +342,21 @@ public class MafiaGameGUI extends JFrame implements ActionListener, Runnable {
                 playerInfoLabel.setText("플레이어: " + playerName + " (사망)");
                 updateControlButtons();
             });
+        } else if (message.contains("마피아가 아닙니다.")) {
+            System.out.println("[DEBUG] 경찰 조사 효과음 실행!");
+            SFXPlayer.playSound("src/mafia_game/sounds/police.wav");
+        
+        } else if (message.contains("마피아입니다!")) {
+            System.out.println("[DEBUG] 사이렌 효과음 실행!");
+            SFXPlayer.playSound("src/mafia_game/sounds/siren.wav");
+        } else if(message.contains("치료했습니다")) {
+            System.out.println("[DEBUG] 치유 효과음 실행!");
+            SFXPlayer.playSound("src/mafia_game/sounds/heal-sound.wav");
+        } else if(message.contains("타겟")) {
+            System.out.println("[DEBUG] 장전 효과음 실행!");
+            SFXPlayer.playSound("src/mafia_game/sounds/reloading.wav");
         }
+
     }
 
     // 타이머 업데이트 처리
@@ -407,8 +421,10 @@ public class MafiaGameGUI extends JFrame implements ActionListener, Runnable {
         if (e.getSource() == chatInput || e.getSource() == sendChatButton) {
             sendChatMessage();
         } else if (e.getSource() == voteButton) {
+            SFXPlayer.playSound("src/mafia_game/sounds/button.wav");
             showVoteDialog();
         } else if (e.getSource() == nightActionButton) {
+            SFXPlayer.playSound("src/mafia_game/sounds/button.wav");
             showNightActionDialog();
         }
     }
