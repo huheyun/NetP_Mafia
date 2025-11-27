@@ -73,64 +73,78 @@ public class TcpServerHandler implements Runnable {
                     new InputStreamReader(
                             sock.getInputStream()));
 
-            // 클라이언트 접속정보 읽기 및 브로드캐스팅
+            // 클라이언트 접속정보 읽기
             id = br.readLine();
+
+            // 접속 맵에 사용자 추가
             sendMap.put(id, pw);
 
-            // 접속 알림
-            broadCast(TcpApplication.timeStamp() +
-                    "[" + id + "] 게임 대기 중입니다.");
             System.out.println(TcpApplication.timeStamp() + id + " <- connected");
-            System.out.println(TcpApplication.timeStamp() +
-                    "접속인원: " + sendMap.size() + "/" + NUMBER + "명");
-            broadCast("대기중.... 접속인원: " + sendMap.size() + "명");
+            System.out.println(TcpApplication.timeStamp() + "접속인원: " + sendMap.size() + "명");
 
-            // 5명이 모이면 게임 시작 (동기화 처리)
-            synchronized (sendMap) {
-                if (sendMap.size() == 5 && !gameStarted) {
-                    gameStarted = true;
-                    broadCast("모든 인원이 참가하여 시작됩니다.");
-
-                    try {
-                        Thread.sleep(3 * 1000);
-                    } catch (InterruptedException e) {
-                    }
-
-                    broadCast(" ");
-                    broadCast("------------게임 시작------------");
-                    broadCast(" ");
-
-                    // 게임 초기화 및 시작
-                    initializeGame();
-                }
+            // 5명이 되면 게임 시작
+            if (sendMap.size() == NUMBER && !gameStarted) {
+                initializeGame();
             }
 
-            // 메시지 처리 루프 (통합)
+            // 메시지 처리 루프
             String line = null;
             while ((line = br.readLine()) != null) {
+
+                // 사망자 채팅 제한
+                if (!playerAlive.getOrDefault(id, true)) {
+                    PrintWriter deadPw = sendMap.get(id);
+                    if (deadPw != null) {
+                        deadPw.println("관찰자 모드입니다. 채팅을 보낼 수 없습니다.");
+                        deadPw.flush();
+                    }
+                    continue;
+                }
+
+                boolean isCitizen = "시민".equals(playerJobs.get(id));
+                boolean isAbilityCommand = line.startsWith("/kill") || line.startsWith("/check")
+                        || line.startsWith("/heal") || line.startsWith("/vote") || line.startsWith("/to");
+
+                // 밤 시간 시민 채팅 제한 (능력/귓속말 제외)
+                if (gameStarted && !isDay && isCitizen && !isAbilityCommand) {
+                    PrintWriter nightPw = sendMap.get(id);
+                    if (nightPw != null) {
+                        nightPw.println("밤에는 시민은 채팅할 수 없습니다.");
+                        nightPw.flush();
+                    }
+                    continue;
+                }
+
                 if (gameStarted) {
-                    // 게임이 시작된 후 메시지 처리
                     if (line.startsWith("/vote ") && votingTime) {
+                        System.out.println("[SERVER] 투표 명령 수신: " + id + " -> " + line);
                         handleVote(id, line);
+                        sendPlayerList();
                     } else if (line.startsWith("/kill ") && !isDay && "마피아".equals(playerJobs.get(id))
-                            && playerAlive.getOrDefault(id, false)) {
+                            && playerAlive.getOrDefault(id, true)) {
+                        System.out.println("[SERVER] 마피아 킬 명령 수신: " + id + " -> " + line);
                         handleMafiaKill(id, line);
                     } else if (line.startsWith("/check ") && !isDay && "경찰".equals(playerJobs.get(id))
-                            && playerAlive.getOrDefault(id, false)) {
+                            && playerAlive.getOrDefault(id, true)) {
+                        System.out.println("[SERVER] 경찰 조사 명령 수신: " + id + " -> " + line);
                         handlePoliceCheck(id, line);
                     } else if (line.startsWith("/heal ") && !isDay && "의사".equals(playerJobs.get(id))
-                            && playerAlive.getOrDefault(id, false)) {
+                            && playerAlive.getOrDefault(id, true)) {
+                        System.out.println("[SERVER] 의사 치료 명령 수신: " + id + " -> " + line);
                         handleDoctorHeal(id, line);
                     } else if (line.indexOf("/to") > -1) {
                         whisper(id, line);
-                    } else {
+                    } else if (!line.startsWith("/")) {
+                        // 일반 채팅만 브로드캐스트 (명령어는 브로드캐스트하지 않음)
                         String msg = "[" + id + "] " + line;
                         TcpServerHandler.broadCast(msg);
                     }
                 } else {
-                    // 게임 시작 전 일반 채팅
-                    String msg = "[" + id + "] " + line;
-                    TcpServerHandler.broadCast(msg);
+                    // 게임 시작 전에는 모든 메시지 브로드캐스트
+                    if (!line.startsWith("/")) {
+                        String msg = "[" + id + "] " + line;
+                        TcpServerHandler.broadCast(msg);
+                    }
                 }
             }
 
@@ -210,7 +224,7 @@ public class TcpServerHandler implements Runnable {
             PrintWriter pw = TcpServerHandler.sendMap.get(id);
 
             if (pw != null) {
-                pw.println("당신의 직업은 " + secret + "입니다.");
+                pw.println("당신의 역할: " + secret);
                 pw.flush();
             }
         }
@@ -277,8 +291,13 @@ public class TcpServerHandler implements Runnable {
         } catch (InterruptedException e) {
         }
 
+        // 게임 시작 플래그 설정
+        gameStarted = true;
+
         // 첫 번째 낮 시작
         startDayPhase();
+        sendPlayerList();
+        sendGameStatus();
     }
 
     // 낮 단계 시작
@@ -286,7 +305,7 @@ public class TcpServerHandler implements Runnable {
         isDay = true;
         votingTime = true;
         votes.clear(); // 투표 초기화
-        remainingTime = 30;
+        remainingTime = 40; // 낮은 40초
 
         broadCast(" ");
         broadCast(dayCount + "일차 낮이 되었습니다 ");
@@ -305,6 +324,8 @@ public class TcpServerHandler implements Runnable {
 
         // 서버 중앙 타이머 시작
         startVotingTimer();
+        sendPlayerList();
+        sendGameStatus();
     }
 
     // 중앙 타이머 시작
@@ -333,13 +354,7 @@ public class TcpServerHandler implements Runnable {
 
     // 타이머 업데이트를 모든 클라이언트에 전송
     private static void sendTimerUpdate(int time) {
-        String timerMessage = "TIMER_UPDATE:" + time;
-        synchronized (sendMap) {
-            for (PrintWriter pw : sendMap.values()) {
-                pw.println(timerMessage);
-                pw.flush(); 
-            }
-        }
+        sendToAllClients("TIMER_UPDATE:" + time);
     }
 
     // 투표 결과 처리
@@ -350,41 +365,54 @@ public class TcpServerHandler implements Runnable {
         if (votes.isEmpty()) {
             broadCast("아무도 투표하지 않았습니다.");
         } else {
-            // 투표 집계
-            HashMap<String, Integer> voteCount = new HashMap<>();
-            for (String target : votes.values()) {
-                voteCount.put(target, voteCount.getOrDefault(target, 0) + 1);
+            // 과반수(현재 생존자 기준) 이상이 투표해야만 결과를 적용
+            int aliveTotal = 0;
+            for (Boolean alive : playerAlive.values()) {
+                if (alive)
+                    aliveTotal++;
             }
+            int required = (aliveTotal / 2) + 1; // 과반수 기준
 
-            // 결과 출력
-            for (Map.Entry<String, Integer> entry : voteCount.entrySet()) {
-                broadCast(entry.getKey() + ": " + entry.getValue() + "표");
-            }
-
-            // 최다 득표자 찾기
-            String maxVotedPlayer = null;
-            int maxVotes = 0;
-            boolean tie = false;
-
-            for (Map.Entry<String, Integer> entry : voteCount.entrySet()) {
-                if (entry.getValue() > maxVotes) {
-                    maxVotes = entry.getValue();
-                    maxVotedPlayer = entry.getKey();
-                    tie = false;
-                } else if (entry.getValue() == maxVotes && maxVotes > 0) {
-                    tie = true;
-                }
-            }
-
-            if (tie || maxVotedPlayer == null) {
-                broadCast("동점으로 아무도 처형되지 않았습니다.");
+            if (votes.size() < required) {
+                broadCast("과반수(" + required + "/" + aliveTotal + ") 이상이 투표하지 않아 처형이 진행되지 않습니다.");
+                broadCast("투표 참여 인원: " + votes.size() + "명");
             } else {
-                broadCast(maxVotedPlayer + "님이 처형됩니다.");
-                eliminatePlayer(maxVotedPlayer);
+                // 투표 집계
+                HashMap<String, Integer> voteCount = new HashMap<>();
+                for (String target : votes.values()) {
+                    voteCount.put(target, voteCount.getOrDefault(target, 0) + 1);
+                }
 
-                // 게임 종료 조건 확인
-                if (checkGameEnd()) {
-                    return; // 게임이 끝났으면 밤으로 넘어가지 않음
+                // 결과 출력
+                for (Map.Entry<String, Integer> entry : voteCount.entrySet()) {
+                    broadCast(entry.getKey() + ": " + entry.getValue() + "표");
+                }
+
+                // 최다 득표자 찾기
+                String maxVotedPlayer = null;
+                int maxVotes = 0;
+                boolean tie = false;
+
+                for (Map.Entry<String, Integer> entry : voteCount.entrySet()) {
+                    if (entry.getValue() > maxVotes) {
+                        maxVotes = entry.getValue();
+                        maxVotedPlayer = entry.getKey();
+                        tie = false;
+                    } else if (entry.getValue() == maxVotes && maxVotes > 0) {
+                        tie = true;
+                    }
+                }
+
+                if (tie || maxVotedPlayer == null) {
+                    broadCast("동점으로 아무도 처형되지 않았습니다.");
+                } else {
+                    broadCast(maxVotedPlayer + "님이 처형됩니다.");
+                    eliminatePlayer(maxVotedPlayer);
+                    sendPlayerList();
+                    sendGameStatus();
+                    if (checkGameEnd()) {
+                        return;
+                    }
                 }
             }
         }
@@ -392,6 +420,7 @@ public class TcpServerHandler implements Runnable {
         broadCast(" ");
         // 밤 시간으로 전환
         startNightPhase();
+        sendGameStatus();
     }
 
     // 플레이어 제거 메서드
@@ -399,6 +428,7 @@ public class TcpServerHandler implements Runnable {
         playerAlive.put(playerId, false);
         String job = playerJobs.get(playerId);
         broadCast(playerId + "님이 제거되었습니다. (직업: " + job + ")");
+        sendPlayerList();
 
         // 해당 플레이어의 연결을 종료하지 않고 관찰자 모드로 전환
         PrintWriter pw = sendMap.get(playerId);
@@ -424,12 +454,14 @@ public class TcpServerHandler implements Runnable {
 
         if (mafiaCount == 0) {
             broadCast(" ");
-            broadCast("🎉 시민팀 승리! 마피아가 모두 제거되었습니다!");
+            broadCast("SOUND_TRIGGER:siren");
+            broadCast("=== 시민팀 승리! 마피아가 모두 제거되었습니다! ===");
             endGame();
             return true;
         } else if (mafiaCount >= aliveCount - mafiaCount) {
             broadCast(" ");
-            broadCast("🎉 마피아팀 승리! 마피아가 과반수를 차지했습니다!");
+            broadCast("SOUND_TRIGGER:siren");
+            broadCast("=== 마피아팀 승리! 마피아가 과반수를 차지했습니다! ===");
             endGame();
             return true;
         }
@@ -458,13 +490,14 @@ public class TcpServerHandler implements Runnable {
     private static void startNightPhase() {
         isDay = false;
         votingTime = false;
-        remainingTime = 15; // 밤은 15초
+        remainingTime = 20; // 밤은 20초
 
         broadCast(" ");
         broadCast("밤이 되었습니다");
         broadCast("마피아가 한 명을 제거합니다...");
         broadCast("시민들은 잠들어주세요.");
         broadCast(" ");
+        sendGameStatus();
 
         // 밤 시간 타이머
         if (gameTimer != null) {
@@ -515,11 +548,11 @@ public class TcpServerHandler implements Runnable {
             }
 
             if (healed) {
-                broadCast("💊 의사가 누군가를 살렸습니다!");
+                broadCast("[구출] 의사가 누군가를 살렸습니다!");
             } else {
                 playerAlive.put(mafiaTarget, false);
                 String job = playerJobs.get(mafiaTarget);
-                broadCast("💀 " + mafiaTarget + "님이 마피아에게 살해되었습니다. (직업: " + job + ")");
+                broadCast("[사망] " + mafiaTarget + "님이 마피아에게 살해되었습니다. (직업: " + job + ")");
 
                 // 제거된 플레이어에게 알림
                 PrintWriter pw = sendMap.get(mafiaTarget);
@@ -539,6 +572,8 @@ public class TcpServerHandler implements Runnable {
         // 게임 종료 조건 확인
         checkGameEnd();
         broadCast(" ");
+        sendPlayerList();
+        sendGameStatus();
     }
 
     // 투표 처리
@@ -614,13 +649,8 @@ public class TcpServerHandler implements Runnable {
             playerInfo.append(playerId).append(",").append(status).append(",").append(voteCount).append(";");
         }
 
-        // 모든 클라이언트에게 플레이어 목록 전송
-        synchronized (sendMap) {
-            for (PrintWriter pw : sendMap.values()) {
-                pw.println(playerInfo.toString());
-                pw.flush();
-            }
-        }
+        // 헬퍼 메서드로 전송
+        sendToAllClients(playerInfo.toString());
     }
 
     // 게임 상태 정보 전송
@@ -628,13 +658,7 @@ public class TcpServerHandler implements Runnable {
         String phase = isDay ? "낮" : "밤";
         String gameStatus = "GAME_STATUS:" + phase + "," + remainingTime + "," + getAlivePlayerCount() + "/"
                 + sendMap.size();
-
-        synchronized (sendMap) {
-            for (PrintWriter pw : sendMap.values()) {
-                pw.println(gameStatus);
-                pw.flush();
-            }
-        }
+        sendToAllClients(gameStatus);
     }
 
     private static int getAlivePlayerCount() {
@@ -659,7 +683,7 @@ public class TcpServerHandler implements Runnable {
 
                     PrintWriter pw = sendMap.get(mafiaId);
                     if (pw != null) {
-                        pw.println("🔪 " + target + "님을 타겟으로 선택했습니다.");
+                        pw.println("[타겟] " + target + "님을 타겟으로 선택했습니다.");
                         pw.flush();
                     }
 
@@ -669,7 +693,7 @@ public class TcpServerHandler implements Runnable {
                                 && playerAlive.getOrDefault(playerId, false)) {
                             PrintWriter mafiaMessage = sendMap.get(playerId);
                             if (mafiaMessage != null) {
-                                mafiaMessage.println("🔪 " + mafiaId + "님이 " + target + "님을 타겟으로 선택했습니다.");
+                                mafiaMessage.println("[타겟] " + mafiaId + "님이 " + target + "님을 타겟으로 선택했습니다.");
                                 mafiaMessage.flush();
                             }
                         }
@@ -707,9 +731,9 @@ public class TcpServerHandler implements Runnable {
                     PrintWriter pw = sendMap.get(policeId);
                     if (pw != null) {
                         if (isMafia) {
-                            pw.println("조사 결과: " + target + "님은 마피아입니다!");
+                            pw.println("[조사] 조사 결과: " + target + "님은 마피아입니다!");
                         } else {
-                            pw.println("조사 결과: " + target + "님은 마피아가 아닙니다.");
+                            pw.println("[조사] 조사 결과: " + target + "님은 마피아가 아닙니다.");
                         }
                         pw.flush();
                     }
@@ -741,7 +765,7 @@ public class TcpServerHandler implements Runnable {
 
                 PrintWriter pw = sendMap.get(doctorId);
                 if (pw != null) {
-                    pw.println(target + "님을 치료했습니다.");
+                    pw.println("[치료] " + target + "님을 치료했습니다.");
                     pw.flush();
                 }
             } else {
@@ -753,4 +777,25 @@ public class TcpServerHandler implements Runnable {
             }
         }
     }
+
+    /*
+     * =============================
+     * 헬퍼 메서드: 메시지 전송 유틸리티
+     * =============================
+     */
+    // 모든 클라이언트에게 메시지 전송 (중복 코드 제거)
+    private static void sendToAllClients(String message) {
+        synchronized (sendMap) {
+            for (PrintWriter pw : sendMap.values()) {
+                pw.println(message);
+                pw.flush();
+            }
+        }
+    }
+
+    /*
+     * =============================
+     * 로비 시스템 명령어 핸들러
+     * =============================
+     */
 }

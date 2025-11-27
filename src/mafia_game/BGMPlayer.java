@@ -16,7 +16,7 @@ public class BGMPlayer {
             try {
                 File audioFile = new File(path);
                 if (!audioFile.exists()) {
-                    System.err.println("❌ BGM 파일 없음: " + audioFile.getAbsolutePath());
+                    System.err.println("BGM 파일 없음: " + audioFile.getAbsolutePath());
                     return;
                 }
 
@@ -30,8 +30,7 @@ public class BGMPlayer {
                         baseFormat.getChannels(),
                         baseFormat.getChannels() * 2,
                         baseFormat.getSampleRate(),
-                        false
-                );
+                        false);
 
                 AudioInputStream decodedStream = AudioSystem.getAudioInputStream(decodedFormat, audioStream);
 
@@ -40,7 +39,7 @@ public class BGMPlayer {
                 line.open(decodedFormat);
                 line.start();
 
-                System.out.println("▶ BGM 재생 시작: " + path);
+                System.out.println("BGM 재생 시작: " + path);
 
                 byte[] buffer = new byte[4096];
                 int bytesRead;
@@ -66,7 +65,7 @@ public class BGMPlayer {
                 decodedStream.close();
                 audioStream.close();
 
-                System.out.println("⏹ BGM 재생 종료");
+                System.out.println("BGM 재생 종료");
 
             } catch (Exception e) {
                 System.err.println("BGM 오류: " + e.getMessage());
@@ -79,14 +78,15 @@ public class BGMPlayer {
 
     public static void stopBGM() {
         if (isPlaying) {
-            System.out.println("⏹ BGM 중지");
+            System.out.println("BGM 중지");
             isPlaying = false;
         }
 
         if (bgmThread != null && bgmThread.isAlive()) {
             try {
                 bgmThread.join(200); // 잠깐 기다림
-            } catch (InterruptedException ignored) {}
+            } catch (InterruptedException ignored) {
+            }
         }
     }
 }
